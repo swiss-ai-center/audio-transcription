@@ -1,2 +1,3 @@
 common-code[test] @ git+https://github.com/swiss-ai-center/common-code.git@main
 whisper_timestamped
+torch==2.2.2
