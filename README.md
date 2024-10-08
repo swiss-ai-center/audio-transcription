@@ -1,3 +1,9 @@
+# Audio transcription service
+
+This service transcribe an audio file with whisper and return the transcribed text.
+
+<!-- 
+
 # Create a new service (generic) template
 
 This repository contains the Python + FastAPI template to create a service
@@ -51,3 +57,4 @@ These checklists allow you to ensure everything is set up correctly.
 
 - [x] Edit the [`.env`](.env) configuration file
 - [ ] TODO
+ -->
