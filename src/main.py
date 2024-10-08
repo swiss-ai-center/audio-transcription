@@ -75,7 +75,7 @@ class MyService(Service):
         DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
         # Load the ML model
         self._logger.info("Loading Whisper Model..")
-        self.model = whisperT.load_model("base", device=DEVICE)
+        self._model = whisperT.load_model("base", device=DEVICE)
         self._logger.info("Model loaded successfully, running on device: " + DEVICE)
 
     # TODO: 5. CHANGE THE PROCESS METHOD (CORE OF THE SERVICE)
@@ -91,7 +91,7 @@ class MyService(Service):
                 self._logger.info("Load Audio file..")
                 audio = whisperT.load_audio(f.name)
                 self._logger.info("Transcribe audio..")
-                result = whisperT.transcribe(self.model, audio, language="en")
+                result = whisperT.transcribe(self._model, audio, language="en")
                 self._logger.info("Transcription: " + result)
 
         except Exception as e:
