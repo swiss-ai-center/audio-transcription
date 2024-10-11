@@ -19,12 +19,15 @@ from common_code.common.models import FieldDescription, ExecutionUnitTag
 from contextlib import asynccontextmanager
 
 # Imports required by the service's model
-import torch
-import whisper
+import io
+import json
+from pydub import AudioSegment
+from transformers import pipeline
 from tempfile import NamedTemporaryFile
 from fastapi import HTTPException
 
 settings = get_settings()
+device = "cpu"
 
 
 class MyService(Service):
@@ -38,8 +41,8 @@ class MyService(Service):
 
     def __init__(self):
         super().__init__(
-            name="Audio Transcription Service",
-            slug="audio-transcription-service",
+            name="Audio Transcription",
+            slug="audio-transcription",
             url=settings.service_url,
             summary=api_summary,
             description=api_description,
@@ -71,44 +74,46 @@ class MyService(Service):
         self._logger = get_logger(settings)
 
         # load the model :
-        # torch.cuda.is_available()  # Check if NVIDIA GPU is available
-        # DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-        # # Load the ML model
-        # self._logger.info("Loading Whisper Model..")
-        # self._model = whisper.load_model("base", device=DEVICE)
-        # self._logger.info("Model loaded successfully, running on device: " + DEVICE)
+        self._logger.info("Loading the Whisper model...")
+        self._model = pipeline("automatic-speech-recognition", model="openai/whisper-tiny", device=device)
+        self._logger.info("Whisper model loaded.")
 
-    # TODO: 5. CHANGE THE PROCESS METHOD (CORE OF THE SERVICE)
     def process(self, data):
         # Get the audio file
-        audio = data["audio_file"].data
+        audio_data = data["audio_file"].data
 
-        # load the model :
-        torch.cuda.is_available()  # Check if NVIDIA GPU is available
-        DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-        # Load the ML model
-        self._logger.info("Loading Whisper Model..")
-        self._model = whisper.load_model("base", device=DEVICE)
-        self._logger.info("Model loaded successfully, running on device: " + DEVICE)
+        # Convert the byte data to an AudioSegment using pydub
+        audio_segment = AudioSegment.from_file(io.BytesIO(audio_data))
 
+        # Split the audio into chunks (e.g., 30 seconds each)
+        chunk_duration_ms = 30 * 1000  # 30 seconds in milliseconds
+        audio_chunks = [audio_segment[i:i + chunk_duration_ms] for i in range(0, len(audio_segment), chunk_duration_ms)]
 
-        # Load the audio file and transcribe it
+        # Initialize an empty string to store the complete transcription
+        complete_transcription = ""
+
         try:
-            # Store the audio file in a temporary file
-            with NamedTemporaryFile(dir="./audio/", delete=True) as f:
-                f.write(audio)
-                # Load the audio file and transcribe it
-                self._logger.info("Transcribe audio..")
-                result = self._model.transcribe(f.name, language="en")
-                self._logger.info(f"Transcription: {result}")
+            # Process each chunk individually
+            for chunk in audio_chunks:
+                with NamedTemporaryFile(delete=False, suffix=".wav") as temp_audio_file:
+                    # Export the chunk to a temporary WAV file
+                    chunk.export(temp_audio_file.name, format="wav")
 
+                    # Transcribe the chunk using the Whisper model
+                    transcription = self._model(temp_audio_file.name)
+                    # Append the transcription to the complete transcription
+                    complete_transcription += transcription['text'] + " "
+                    # Set complete_transcription to json
+                    result = {
+                        "transcription": complete_transcription,
+                    }
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
 
-        # NOTE that the result must be a dictionary with the keys being the field names set in the data_out_fields
+        # Return the complete transcription as JSON
         return {
             "result": TaskData(
-                data=str(result),
+                data=json.dumps(result),
                 type=FieldDescriptionType.APPLICATION_JSON
             )
         }
@@ -171,7 +176,6 @@ api_summary = """Audio file transcription service.
 """
 
 # Define the FastAPI application with information
-# TODO: 7. CHANGE THE API TITLE, VERSION, CONTACT AND LICENSE
 app = FastAPI(
     lifespan=lifespan,
     title="Audio file transcription API.",
