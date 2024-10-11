@@ -1,6 +1,6 @@
 # Audio transcription service
 
-This service transcribe an audio file with whisper and return the transcribed text.
+This service transcribe an audio file with Whisper and return the transcribed text with the segments details.
 
 <!-- 
 

@@ -20,7 +20,7 @@ from contextlib import asynccontextmanager
 
 # Imports required by the service's model
 import torch
-import whisper_timestamped as whisperT
+import whisper
 from tempfile import NamedTemporaryFile
 from fastapi import HTTPException
 
@@ -55,7 +55,7 @@ class MyService(Service):
             ],
             data_out_fields=[
                 FieldDescription(
-                    name="result", type=[FieldDescriptionType.TEXT_PLAIN]
+                    name="result", type=[FieldDescriptionType.APPLICATION_JSON]
                 ),
             ],
             tags=[
@@ -71,28 +71,36 @@ class MyService(Service):
         self._logger = get_logger(settings)
 
         # load the model :
-        torch.cuda.is_available()  # Check if NVIDIA GPU is available
-        DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-        # Load the ML model
-        self._logger.info("Loading Whisper Model..")
-        self._model = whisperT.load_model("base", device=DEVICE)
-        self._logger.info("Model loaded successfully, running on device: " + DEVICE)
+        # torch.cuda.is_available()  # Check if NVIDIA GPU is available
+        # DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+        # # Load the ML model
+        # self._logger.info("Loading Whisper Model..")
+        # self._model = whisper.load_model("base", device=DEVICE)
+        # self._logger.info("Model loaded successfully, running on device: " + DEVICE)
 
     # TODO: 5. CHANGE THE PROCESS METHOD (CORE OF THE SERVICE)
     def process(self, data):
         # Get the audio file
         audio = data["audio_file"].data
 
+        # load the model :
+        torch.cuda.is_available()  # Check if NVIDIA GPU is available
+        DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+        # Load the ML model
+        self._logger.info("Loading Whisper Model..")
+        self._model = whisper.load_model("base", device=DEVICE)
+        self._logger.info("Model loaded successfully, running on device: " + DEVICE)
+
+
+        # Load the audio file and transcribe it
         try:
             # Store the audio file in a temporary file
             with NamedTemporaryFile(dir="./audio/", delete=True) as f:
                 f.write(audio)
                 # Load the audio file and transcribe it
-                self._logger.info("Load Audio file..")
-                audio = whisperT.load_audio(f.name)
                 self._logger.info("Transcribe audio..")
-                result = whisperT.transcribe(self._model, audio, language="en")
-                self._logger.info("Transcription: " + result)
+                result = self._model.transcribe(f.name, language="en")
+                self._logger.info(f"Transcription: {result}")
 
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
@@ -100,8 +108,8 @@ class MyService(Service):
         # NOTE that the result must be a dictionary with the keys being the field names set in the data_out_fields
         return {
             "result": TaskData(
-                data=result,
-                type=FieldDescriptionType.TEXT_PLAIN
+                data=str(result),
+                type=FieldDescriptionType.APPLICATION_JSON
             )
         }
 
@@ -157,7 +165,7 @@ async def lifespan(app: FastAPI):
 
 
 api_description = """
-Transcribe an audio file with whisper timestamp and return the transcription as text.
+Transcribe an audio file with Whisper base model and return the transcription as text.
 """
 api_summary = """Audio file transcription service.
 """
