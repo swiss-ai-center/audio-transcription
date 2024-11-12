@@ -1,6 +1,8 @@
 # Audio transcription service
 
-This service transcribe an audio file with Whisper and return the transcribed text with the segments details.
+This service transcribe an audio file with Whisper and return the transcribed text.
+
+_Check the [related documentation](https://docs.swiss-ai-center.ch/reference/services/audio-transcription/) for more information._
 
 <!-- 
 

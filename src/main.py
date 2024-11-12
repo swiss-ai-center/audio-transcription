@@ -170,7 +170,7 @@ async def lifespan(app: FastAPI):
 
 
 api_description = """
-Transcribe an audio file with Whisper base model and return the transcription as text.
+Transcribe an audio file with Whisper tiny model and return the transcription as text.
 """
 api_summary = """Audio file transcription service.
 """
